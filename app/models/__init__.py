@@ -3,7 +3,7 @@
 from .user import User
 from .post import Post, PostStatus
 from .photo import Photo
-from .report import Report
+from .report import Report, ReportStatus
 from .notification import Notification
 from .reward import Reward, RewardStatus
 
@@ -14,6 +14,7 @@ __all__ = [
     "PostStatus", 
     "Photo",
     "Report",
+    "ReportStatus",
     "Notification",
     "Reward",
     "RewardStatus"
