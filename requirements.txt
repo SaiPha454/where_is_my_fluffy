@@ -2,3 +2,6 @@ fastapi[standard]
 uvicorn[standard]
 sqlalchemy
 alembic
+bcrypt
+python-multipart
+email-validator

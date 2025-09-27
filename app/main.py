@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from .routers.user_route import router as user_router
+from .routers.auth_route import router as auth_router
 from .db.database import create_tables
 
 # Main entry file to run the application
@@ -15,6 +16,7 @@ async def startup_event():
     create_tables()
 
 # Include routers
+app.include_router(auth_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
 
 @app.get("/")
