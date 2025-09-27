@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from ..models.user import User
 from ..utils.auth_utils import PasswordHelper
+from ..config import Config
 from typing import Optional
 
 
@@ -10,6 +11,9 @@ class AuthRepository:
     
     def __init__(self, db: Session):
         self.db = db
+        # Create password helper with configured algorithm
+        config = Config.get_password_helper_config()
+        self.password_helper = PasswordHelper.create_with_algorithm(**config)
     
     def get_user_by_email(self, email: str) -> Optional[User]:
         """Get user by email"""
@@ -22,8 +26,8 @@ class AuthRepository:
     def create_user(self, username: str, email: str, password: str) -> Optional[User]:
         """Create a new user"""
         try:
-            # Hash the password
-            hashed_password = PasswordHelper.hash_password(password)
+            # Hash the password using strategy pattern
+            hashed_password = self.password_helper.hash_password(password)
             
             # Create new user
             new_user = User(
@@ -51,7 +55,7 @@ class AuthRepository:
         """Verify user credentials and return user if valid"""
         user = self.get_user_by_email(email)
         
-        if user and PasswordHelper.verify_password(password, user.password_hash):
+        if user and self.password_helper.verify_password(password, user.password_hash):
             return user
         
         return None
