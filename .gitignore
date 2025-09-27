@@ -26,6 +26,12 @@ wheels/
 .installed.cfg
 *.egg
 
+# Database
+*.db
+*.sqlite
+*.sqlite3
+myfluffy.db
+
 # IDE
 .vscode/
 .idea/
