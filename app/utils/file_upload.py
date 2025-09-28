@@ -2,17 +2,79 @@ import os
 import uuid
 from pathlib import Path
 from typing import List
+from abc import ABC, abstractmethod
 import shutil
 from fastapi import UploadFile, HTTPException
 from PIL import Image
 import io
 
-class FileUploadManager:
-    """Utility class for handling file uploads"""
+
+class FileStorageStrategy(ABC):
+    """Abstract base class for file storage strategies"""
     
-    def __init__(self, upload_dir: str = "images"):
+    @abstractmethod
+    async def save_file(self, file_content: bytes, filename: str) -> str:
+        """Save file content and return the file path/URL"""
+        pass
+    
+    @abstractmethod
+    def delete_file(self, file_path: str) -> bool:
+        """Delete a file and return success status"""
+        pass
+    
+    @abstractmethod
+    def get_file_url(self, file_path: str, base_url: str = None) -> str:
+        """Generate accessible URL for a file"""
+        pass
+
+
+class LocalFileStorage(FileStorageStrategy):
+    """Local file system storage strategy"""
+    
+    def __init__(self, upload_dir: str = "app/images"):
         self.upload_dir = Path(upload_dir)
         self.upload_dir.mkdir(exist_ok=True, parents=True)
+    
+    async def save_file(self, file_content: bytes, filename: str) -> str:
+        """Save file to local directory and return relative path"""
+        try:
+            file_path = self.upload_dir / filename
+            with open(file_path, 'wb') as f:
+                f.write(file_content)
+            
+            # Return relative path for database storage
+            return f"images/{filename}"
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    
+    def delete_file(self, file_path: str) -> bool:
+        """Delete a file from the local upload directory"""
+        try:
+            # Handle both absolute and relative paths
+            if file_path.startswith("images/"):
+                # Relative path from database
+                full_path = self.upload_dir / file_path.replace("images/", "")
+            else:
+                # Assume it's already a full path
+                full_path = Path(file_path)
+            
+            if full_path.exists() and full_path.is_file():
+                full_path.unlink()
+                return True
+            return False
+        except Exception:
+            return False
+    
+    def get_file_url(self, file_path: str, base_url: str = "http://localhost:8000") -> str:
+        """Generate full URL for a local file"""
+        return f"{base_url}/{file_path}"
+
+class FileUploadManager:
+    """Utility class for handling file uploads using pluggable storage strategies"""
+    
+    def __init__(self, storage_strategy: FileStorageStrategy):
+        self.storage = storage_strategy
         
         # Allowed file extensions
         self.allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
@@ -101,18 +163,9 @@ class FileUploadManager:
         
         # Generate unique filename
         unique_filename = self.generate_unique_filename(file.filename)
-        file_path = self.upload_dir / unique_filename
         
-        # Save file
-        try:
-            with open(file_path, 'wb') as f:
-                f.write(processed_content)
-            
-            # Return relative path for database storage
-            return f"images/{unique_filename}"
-            
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        # Use storage strategy to save file
+        return await self.storage.save_file(processed_content, unique_filename)
     
     async def save_multiple_files(self, files: List[UploadFile]) -> List[str]:
         """Save multiple uploaded files and return list of relative paths"""
@@ -140,31 +193,23 @@ class FileUploadManager:
             return file_paths
             
         except Exception as e:
-            # Cleanup saved files on error
+            # Cleanup saved files on error using storage strategy
             for file_path in saved_files:
                 try:
-                    full_path = Path(file_path)
-                    if full_path.exists():
-                        full_path.unlink()
+                    self.storage.delete_file(file_path)
                 except:
                     pass  # Ignore cleanup errors
             raise e
     
     def delete_file(self, file_path: str) -> bool:
-        """Delete a file from the upload directory"""
-        try:
-            full_path = Path(file_path)
-            if full_path.exists() and full_path.is_file():
-                full_path.unlink()
-                return True
-            return False
-        except Exception:
-            return False
+        """Delete a file using the storage strategy"""
+        return self.storage.delete_file(file_path)
     
     def get_file_url(self, file_path: str, base_url: str = "http://localhost:8000") -> str:
-        """Generate full URL for a file"""
-        return f"{base_url}/{file_path}"
+        """Generate full URL for a file using the storage strategy"""
+        return self.storage.get_file_url(file_path, base_url)
 
 
-# Global instance
-file_upload_manager = FileUploadManager("app/images")
+# Global instance with local storage strategy
+local_storage = LocalFileStorage("app/images")
+file_upload_manager = FileUploadManager(local_storage)
