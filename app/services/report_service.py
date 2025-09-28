@@ -1,10 +1,12 @@
 from ..repositories.report_repository import ReportRepository
 from ..repositories.post_repository import PostRepository
+from ..repositories.user_repository import UserRepository
 from ..schemas.report_schema import ReportCreateForm, ReportResponse
 from ..builders.report_builder import ReportBuilder
 from ..models.report import ReportStatus
 from ..models.post import PostStatus
 from ..utils.file_upload import file_upload_manager
+from ..facades.reward_process_facade import RewardProcessFacade
 from fastapi import HTTPException, status, UploadFile
 from typing import Optional, List
 
@@ -12,9 +14,11 @@ from typing import Optional, List
 class ReportService:
     """Service layer for report operations"""
     
-    def __init__(self, report_repository: ReportRepository, post_repository: PostRepository):
+    def __init__(self, report_repository: ReportRepository, post_repository: PostRepository, user_repository: UserRepository, db_session):
         self.report_repository = report_repository
         self.post_repository = post_repository
+        self.user_repository = user_repository
+        self.db_session = db_session
     
     async def create_report(
         self, 
@@ -144,30 +148,13 @@ class ReportService:
             )
     
     def reward_report(self, report_id: int) -> ReportResponse:
-        """Reward a report (set status to rewarded)"""
-        try:
-            # Check if report exists
-            if not self.report_repository.report_exists(report_id):
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Report with id {report_id} not found"
-                )
-            
-            # Update the report status
-            updated_report = self.report_repository.reward_report(report_id)
-            
-            if not updated_report:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Failed to reward report"
-                )
-            
-            return ReportResponse.from_report(updated_report)
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error rewarding report: {str(e)}"
-            )
+        """
+        Reward a report using the Facade pattern for workflow coordination.
+        
+        The facade handles the complete workflow of:
+        1. Transferring reward points to reporter
+        2. Marking the related post as found
+        3. Updating the report status to rewarded
+        """
+        facade = RewardProcessFacade(self.db_session)
+        return facade.execute_reward_process(report_id)

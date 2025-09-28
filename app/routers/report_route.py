@@ -6,6 +6,7 @@ from ..db.database import get_db
 from ..services.report_service import ReportService
 from ..repositories.report_repository import ReportRepository
 from ..repositories.post_repository import PostRepository
+from ..repositories.user_repository import UserRepository
 from ..schemas.report_schema import ReportCreateForm, ReportResponse
 from ..schemas.auth_schema import UserResponse
 from ..routers.auth_route import get_current_user
@@ -21,7 +22,8 @@ def get_report_service(db: Session = Depends(get_db)) -> ReportService:
     """Dependency to get ReportService instance"""
     report_repository = ReportRepository(db)
     post_repository = PostRepository(db)
-    return ReportService(report_repository, post_repository)
+    user_repository = UserRepository(db)
+    return ReportService(report_repository, post_repository, user_repository, db)
 
 
 @router.post("/", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
