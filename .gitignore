@@ -32,6 +32,10 @@ wheels/
 *.sqlite3
 myfluffy.db
 
+# Uploaded files
+app/images/
+images/
+
 # IDE
 .vscode/
 .idea/
