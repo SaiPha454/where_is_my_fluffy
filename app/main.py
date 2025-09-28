@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from .routers.user_route import router as user_router
 from .routers.auth_route import router as auth_router
 from .routers.post_route import router as post_router
+from .routers.report_route import router as report_router
 from .db.database import create_tables
 
 # Main entry file to run the application
@@ -24,6 +25,7 @@ app.mount("/images", StaticFiles(directory="app/images"), name="images")
 app.include_router(auth_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
 app.include_router(post_router, prefix="/api")
+app.include_router(report_router, prefix="/api")
 
 @app.get("/")
 async def root():

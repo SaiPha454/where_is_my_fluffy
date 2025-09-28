@@ -25,3 +25,4 @@ class Report(Base):
     post = relationship("Post", back_populates="reports")
     reporter = relationship("User", back_populates="reports")
     notifications = relationship("Notification", back_populates="report", cascade="all, delete-orphan")
+    photos = relationship("ReportPhoto", back_populates="report", cascade="all, delete-orphan")

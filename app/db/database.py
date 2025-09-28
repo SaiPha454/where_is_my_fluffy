@@ -35,6 +35,7 @@ def create_tables():
     from ..models.post import Post
     from ..models.photo import Photo
     from ..models.report import Report
+    from ..models.report_photo import ReportPhoto
     from ..models.notification import Notification
     from ..models.reward import Reward
     
