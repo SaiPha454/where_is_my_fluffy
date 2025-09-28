@@ -1,7 +1,8 @@
 from ..repositories.post_repository import PostRepository
-from ..schemas.post_schema import PostCreate, PostCreateForm, PostResponse, PostListResponse, PostFilters
-from ..models.post import Post
+from ..schemas.post_schema import PostCreateForm, PostResponse, PostListResponse, PostFilters
+from ..models.post import Post, PostStatus
 from ..utils.file_upload import file_upload_manager
+from ..builders.post_builder import PostBuilder
 from fastapi import HTTPException, status, UploadFile
 from typing import Optional, List
 
@@ -13,45 +14,60 @@ class PostService:
         self.post_repository = post_repository
     
     async def create_post(self, post_form: PostCreateForm, photos: List[UploadFile], owner_id: int) -> PostResponse:
-        """Create a new post with file uploads"""
+        """Create a new post with file uploads using Builder pattern"""
         try:
-            # Validate and save uploaded photos
+            # Step 1: Handle file uploads (this stays the same)
             photo_paths = await file_upload_manager.save_multiple_files(photos)
             
-            # Create PostCreate object with photo paths
-            post_data = PostCreate(
-                pet_name=post_form.pet_name,
-                pet_species=post_form.pet_species,
-                pet_breed=post_form.pet_breed,
-                last_seen_location=post_form.last_seen_location,
-                contact_information=post_form.contact_information,
-                description=post_form.description,
-                photos=photo_paths,
-                reward_points=post_form.reward_points
-            )
-            
-            # Create the post through repository
-            new_post = self.post_repository.create_post(post_data, owner_id)
-            
-            if not new_post:
-                # Cleanup uploaded files if post creation failed
+            try:
+                # Step 2: Create PostBuilder with individual methods (as requested)
+                builder = (PostBuilder()
+                    .set_owner_id(owner_id)
+                    .set_pet_name(post_form.pet_name)
+                    .set_pet_species(post_form.pet_species)
+                    .set_pet_breed(post_form.pet_breed)
+                    .set_last_seen_location(post_form.last_seen_location)
+                    .set_contact_information(post_form.contact_information)
+                    .set_description(post_form.description)
+                    .set_photos(photo_paths)
+                    .set_reward_points(post_form.reward_points or 0)  # Clean with method default
+                    .set_status(PostStatus.lost))  # Use proper enum
+                
+                # Step 3: Repository uses builder's getter methods for clean access
+                new_post = self.post_repository.create_post(builder)
+                
+                if not new_post:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Failed to create post"
+                    )
+                
+                return PostResponse.from_post(new_post)
+                
+            except ValueError as e:
+                # Builder validation error - cleanup files and return user-friendly error
                 for photo_path in photo_paths:
                     file_upload_manager.delete_file(photo_path)
                 
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Failed to create post"
+                    detail=f"Invalid post data: {str(e)}"
                 )
-            
-            return PostResponse.from_post(new_post)
             
         except HTTPException:
             raise
         except Exception as e:
+            # Cleanup uploaded files on any error
+            if 'photo_paths' in locals():
+                for photo_path in photo_paths:
+                    file_upload_manager.delete_file(photo_path)
+            
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error creating post: {str(e)}"
             )
+    
+
     
     def get_posts(self, filters: PostFilters) -> PostListResponse:
         """Get posts with optional filtering"""

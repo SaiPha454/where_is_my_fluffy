@@ -5,7 +5,7 @@ from ..models.post import Post
 from ..models.photo import Photo
 from ..models.reward import Reward
 from ..models.user import User
-from ..schemas.post_schema import PostCreate, PostStatus
+from ..schemas.post_schema import PostStatus
 from typing import Optional, List
 from datetime import datetime
 
@@ -16,39 +16,45 @@ class PostRepository:
     def __init__(self, db: Session):
         self.db = db
     
-    def create_post(self, post_data: PostCreate, owner_id: int) -> Optional[Post]:
-        """Create a new post with photos and reward"""
+
+    
+    def create_post(self, builder) -> Optional[Post]:
+        """
+        Create a new post from builder using getter methods
+        
+        This method uses builder's getter methods for cleaner access
+        and always creates reward records (even with 0 points).
+        """
         try:
-            # Create the post
+            # Create the main post entity using builder getter methods
             new_post = Post(
-                pet_name=post_data.pet_name,
-                pet_spec=post_data.pet_species,  # Map pet_species to pet_spec
-                pet_breed=post_data.pet_breed,
-                last_seen_location=post_data.last_seen_location,
-                contact_information=post_data.contact_information,
-                description=post_data.description,
-                status="lost",  # Default status
-                owner_id=owner_id
+                owner_id=builder.get_owner_id(),
+                pet_name=builder.get_pet_name(),
+                pet_spec=builder.get_pet_species(),  # Uses mapped field from builder
+                pet_breed=builder.get_pet_breed(),
+                last_seen_location=builder.get_last_seen_location(),
+                contact_information=builder.get_contact_information(),
+                description=builder.get_description(),
+                status=builder.get_status()
             )
-            
             self.db.add(new_post)
-            self.db.flush()  # Get the post ID
+            self.db.flush()  # Get the post ID for related entities
             
-            # Create photos
-            for photo_url in post_data.photos:
+            # Create photos using builder getter methods
+            for photo_url in builder.get_photos():
                 photo = Photo(
                     post_id=new_post.id,
                     photo_url=photo_url
                 )
                 self.db.add(photo)
             
-            # Create reward if points > 0
-            if post_data.reward_points and post_data.reward_points > 0:
-                reward = Reward(
-                    post_id=new_post.id,
-                    amount=post_data.reward_points  # Map reward_points to amount
-                )
-                self.db.add(reward)
+            # Always create reward record (even with 0 points) using builder getters
+            reward = Reward(
+                post_id=new_post.id,
+                amount=builder.get_reward_amount(),  # Use getter method
+                status=builder.get_reward_status()   # Use getter method
+            )
+            self.db.add(reward)
             
             self.db.commit()
             
