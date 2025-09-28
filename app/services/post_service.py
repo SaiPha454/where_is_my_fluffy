@@ -1,4 +1,5 @@
 from ..repositories.post_repository import PostRepository
+from ..repositories.user_repository import UserRepository
 from ..schemas.post_schema import PostCreateForm, PostResponse, PostListResponse, PostFilters
 from ..models.post import Post, PostStatus
 from ..utils.file_upload import file_upload_manager
@@ -10,8 +11,9 @@ from typing import Optional, List
 class PostService:
     """Service layer for post operations"""
     
-    def __init__(self, post_repository: PostRepository):
+    def __init__(self, post_repository: PostRepository, user_repository: UserRepository):
         self.post_repository = post_repository
+        self.user_repository = user_repository
     
     async def create_post(self, post_form: PostCreateForm, photos: List[UploadFile], owner_id: int) -> PostResponse:
         """Create a new post with file uploads using Builder pattern"""
@@ -20,7 +22,24 @@ class PostService:
             photo_paths = await file_upload_manager.save_multiple_files(photos)
             
             try:
-                # Step 2: Create PostBuilder with individual methods (as requested)
+                # Step 2: Validate user balance for reward points
+                reward_amount = post_form.reward_points or 0
+                user = None  # Store user data to avoid duplicate queries
+                if reward_amount > 0:
+                    user = self.user_repository.get_user_by_id(owner_id)
+                    if not user:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail="User not found"
+                        )
+                    
+                    if user.balance < reward_amount:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Insufficient balance. You have {user.balance} points but need {reward_amount} points for this reward."
+                        )
+                
+                # Step 3: Create PostBuilder with individual methods (as requested)
                 builder = (PostBuilder()
                     .set_owner_id(owner_id)
                     .set_pet_name(post_form.pet_name)
@@ -30,10 +49,10 @@ class PostService:
                     .set_contact_information(post_form.contact_information)
                     .set_description(post_form.description)
                     .set_photos(photo_paths)
-                    .set_reward_points(post_form.reward_points or 0)  # Clean with method default
+                    .set_reward_points(reward_amount)  # Use validated reward amount
                     .set_status(PostStatus.lost))  # Use proper enum
                 
-                # Step 3: Repository uses builder's getter methods for clean access
+                # Step 4: Repository uses builder's getter methods for clean access
                 new_post = self.post_repository.create_post(builder)
                 
                 if not new_post:
@@ -41,6 +60,18 @@ class PostService:
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Failed to create post"
                     )
+                
+                # Step 5: Deduct reward points from user's balance if any
+                if reward_amount > 0 and user:  # user is already retrieved above
+                    new_balance = user.balance - reward_amount
+                    updated_user = self.user_repository.update_user_balance(owner_id, new_balance)
+                    if not updated_user:
+                        # This is a serious error - post created but balance not updated
+                        # In a real system, you might want to implement compensation logic
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Post created but failed to update balance. Please contact support."
+                        )
                 
                 return PostResponse.from_post(new_post)
                 

@@ -5,6 +5,7 @@ from typing import Optional, List
 from ..db.database import get_db
 from ..services.post_service import PostService
 from ..repositories.post_repository import PostRepository
+from ..repositories.user_repository import UserRepository
 from ..schemas.post_schema import PostCreateForm, PostResponse, PostListResponse, PostFilters, PostStatus
 from ..routers.auth_route import get_current_user
 from ..schemas.auth_schema import UserResponse
@@ -15,7 +16,8 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 def get_post_service(db: Session = Depends(get_db)) -> PostService:
     """Dependency to get PostService instance"""
     post_repository = PostRepository(db)
-    return PostService(post_repository)
+    user_repository = UserRepository(db)
+    return PostService(post_repository, user_repository)
 
 
 @router.post("/", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
