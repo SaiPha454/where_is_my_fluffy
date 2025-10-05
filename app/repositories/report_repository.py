@@ -124,3 +124,44 @@ class ReportRepository:
             .order_by(Report.created_at.desc())  # Latest first
             .all()
         )
+    
+    def update_reports_by_post_and_status(self, post_id: int, current_status: ReportStatus, new_status: ReportStatus) -> List[Report]:
+        """Update all reports for a specific post that have a certain status to a new status"""
+        try:
+            # Get all reports matching the criteria
+            reports_to_update = (
+                self.db.query(Report)
+                .filter(
+                    Report.post_id == post_id,
+                    Report.status == current_status
+                )
+                .all()
+            )
+            
+            # Update their status
+            updated_reports = []
+            for report in reports_to_update:
+                report.status = new_status
+                updated_reports.append(report)
+            
+            if updated_reports:
+                self.db.commit()
+                
+                # Return updated reports with full relationships
+                updated_report_ids = [report.id for report in updated_reports]
+                return (
+                    self.db.query(Report)
+                    .options(
+                        joinedload(Report.reporter),
+                        joinedload(Report.post),
+                        joinedload(Report.photos)
+                    )
+                    .filter(Report.id.in_(updated_report_ids))
+                    .all()
+                )
+            
+            return []
+            
+        except Exception as e:
+            self.db.rollback()
+            raise e

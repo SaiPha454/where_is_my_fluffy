@@ -182,3 +182,22 @@ class ReportService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error retrieving reports for post: {str(e)}"
             )
+    
+    def reject_pending_reports_by_post_id(self, post_id: int) -> List[ReportResponse]:
+        """Reject all pending reports for a specific post (used when post is closed)"""
+        try:
+            # Update all pending reports for this post to rejected status
+            updated_reports = self.report_repository.update_reports_by_post_and_status(
+                post_id=post_id,
+                current_status=ReportStatus.pending,
+                new_status=ReportStatus.rejected
+            )
+            
+            # Convert to response objects
+            return [ReportResponse.from_report(report) for report in updated_reports]
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error rejecting pending reports for post: {str(e)}"
+            )

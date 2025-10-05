@@ -5,15 +5,20 @@ from ..models.post import Post, PostStatus
 from ..utils.file_upload import file_upload_manager
 from ..builders.post_builder import PostBuilder
 from fastapi import HTTPException, status, UploadFile
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
+
+# Import ReportService only for type checking to avoid circular imports
+if TYPE_CHECKING:
+    from .report_service import ReportService
 
 
 class PostService:
     """Service layer for post operations"""
     
-    def __init__(self, post_repository: PostRepository, user_repository: UserRepository):
+    def __init__(self, post_repository: PostRepository, user_repository: UserRepository, report_service: Optional['ReportService'] = None):
         self.post_repository = post_repository
         self.user_repository = user_repository
+        self.report_service = report_service
     
     async def create_post(self, post_form: PostCreateForm, photos: List[UploadFile], owner_id: int) -> PostResponse:
         """Create a new post with file uploads using Builder pattern"""
@@ -213,6 +218,17 @@ class PostService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Failed to close post"
                 )
+            
+            # If report_service is available, reject all pending reports for this post
+            if self.report_service:
+                try:
+                    rejected_reports = self.report_service.reject_pending_reports_by_post_id(post_id)
+                    # Log the number of reports that were rejected (optional)
+                    if rejected_reports:
+                        print(f"Post {post_id} closed: {len(rejected_reports)} pending reports were automatically rejected")
+                except Exception as e:
+                    # Log the error but don't fail the post closure
+                    print(f"Warning: Failed to reject pending reports for post {post_id}: {str(e)}")
             
             return PostResponse.from_post(closed_post)
             

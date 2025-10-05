@@ -20,7 +20,12 @@ def get_post_service(db: Session = Depends(get_db)) -> PostService:
     """Dependency to get PostService instance"""
     post_repository = PostRepository(db)
     user_repository = UserRepository(db)
-    return PostService(post_repository, user_repository)
+    
+    # Create ReportService to handle pending report rejection when closing posts
+    report_repository = ReportRepository(db)
+    report_service = ReportService(report_repository, post_repository, user_repository, db)
+    
+    return PostService(post_repository, user_repository, report_service)
 
 
 def get_report_service(db: Session = Depends(get_db)) -> ReportService:
