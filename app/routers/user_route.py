@@ -20,7 +20,24 @@ def get_user_service(db: Session = Depends(get_db)) -> UserService:
     return UserService(user_repository)
 
 
-@router.get("/{user_id}", response_model=PublicUserResponse)
+@router.get("/{user_id}", response_model=PublicUserResponse, responses={
+    404: {
+        "description": "User not found",
+        "content": {
+            "application/json": {
+                "example": {"detail": "User with id 123 not found"}
+            }
+        }
+    },
+    500: {
+        "description": "Server error while retrieving user",
+        "content": {
+            "application/json": {
+                "example": {"detail": "Error retrieving user: <reason>"}
+            }
+        }
+    }
+})
 def get_user_by_id(
     user_id: int,
     user_service: UserService = Depends(get_user_service)
@@ -35,7 +52,48 @@ def get_user_by_id(
     return user_service.get_user_by_id(user_id)
 
 
-@router.put("", response_model=UserResponse, status_code=status.HTTP_200_OK)
+@router.put("", response_model=UserResponse, status_code=status.HTTP_200_OK, responses={
+    401: {
+        "content": {
+            "application/json": {
+                "examples": {
+                    "MissingSession": {
+                        "summary": "Missing session cookie",
+                        "value": {"detail": "Authentication required"}
+                    },
+                    "InvalidSession": {
+                        "summary": "Invalid or expired session",
+                        "value": {"detail": "Invalid or expired session"}
+                    }
+                }
+            }
+        }
+    },
+    404: {
+        "description": "User not found",
+        "content": {
+            "application/json": {
+                "example": {"detail": "User not found"}
+            }
+        }
+    },
+    400: {
+        "description": "Failed to update balance",
+        "content": {
+            "application/json": {
+                "example": {"detail": "Failed to update balance"}
+            }
+        }
+    },
+    500: {
+        "description": "Server error while updating balance",
+        "content": {
+            "application/json": {
+                "example": {"detail": "Error updating balance: <reason>"}
+            }
+        }
+    }
+})
 def top_up_balance(
     top_up_request: BalanceTopUpRequest,
     current_user: UserResponse = Depends(get_current_user),

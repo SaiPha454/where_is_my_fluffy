@@ -31,7 +31,48 @@ def get_report_service(db: Session = Depends(get_db)) -> ReportService:
     return ReportService(report_repository, post_repository, user_repository, db)
 
 
-@router.post("/", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=PostResponse, status_code=status.HTTP_201_CREATED, responses={
+    401: {
+        "content": {
+            "application/json": {
+                "examples": {
+                    "MissingSession": {"summary": "Missing session cookie", "value": {"detail": "Authentication required"}},
+                    "InvalidSession": {"summary": "Invalid or expired session", "value": {"detail": "Invalid or expired session"}}
+                }
+            }
+        }
+    },
+    400: {
+        "content": {
+            "application/json": {
+                "examples": {
+                    "InvalidPostData": {"summary": "Builder validation or failed create", "value": {"detail": "Invalid post data: <reason>"}},
+                    "FailedCreatePost": {"summary": "Failed to create post", "value": {"detail": "Failed to create post"}},
+                    "InsufficientBalance": {"summary": "User balance too low for reward", "value": {"detail": "Insufficient balance. You have <current> points but need <required> points for this reward."}}
+                }
+            }
+        }
+    },
+    404: {
+        "description": "Related user not found when validating reward",
+        "content": {
+            "application/json": {
+                "example": {"detail": "User not found"}
+            }
+        }
+    },
+    500: {
+        "description": "Server error while creating post",
+        "content": {
+            "application/json": {
+                "examples": {
+                    "GenericServerError": {"summary": "Unexpected server error", "value": {"detail": "Error creating post: <reason>"}},
+                    "PostCreatedBalanceUpdateFailed": {"summary": "Post created but balance update failed", "value": {"detail": "Post created but failed to update balance. Please contact support."}}
+                }
+            }
+        }
+    }
+})
 async def create_post(
     post_form: PostCreateForm = Depends(PostCreateForm.as_form),
     photos: List[UploadFile] = File(..., description="Pet photos (1-4 images, max 5MB each)"),
@@ -62,7 +103,12 @@ async def create_post(
     return await post_service.create_post(post_form, photos, current_user.id)
 
 
-@router.get("/", response_model=PostListResponse)
+@router.get("/", response_model=PostListResponse, responses={
+    500: {
+        "description": "Server error while retrieving posts",
+        "content": {"application/json": {"example": {"detail": "Error retrieving posts: <reason>"}}}
+    }
+})
 async def get_posts(
     status: Optional[PostStatus] = Query(None, description="Filter by post status"),
     user_id: Optional[int] = Query(None, description="Filter by user ID"),
@@ -87,7 +133,10 @@ async def get_posts(
     return post_service.get_posts(filters)
 
 
-@router.get("/{post_id}", response_model=PostResponse)
+@router.get("/{post_id}", response_model=PostResponse, responses={
+    404: {"description": "Post not found", "content": {"application/json": {"example": {"detail": "Post with id 123 not found"}}}},
+    500: {"description": "Server error while retrieving post", "content": {"application/json": {"example": {"detail": "Error retrieving post: <reason>"}}}}
+})
 async def get_post_by_id(
     post_id: int,
     post_service: PostService = Depends(get_post_service)
@@ -104,7 +153,13 @@ async def get_post_by_id(
     return post_service.get_post_by_id(post_id)
 
 
-@router.put("/{post_id}", response_model=PostResponse)
+@router.put("/{post_id}", response_model=PostResponse, responses={
+    401: {"content": {"application/json": {"examples": {"MissingSession": {"summary": "Missing session cookie", "value": {"detail": "Authentication required"}}, "InvalidSession": {"summary": "Invalid or expired session", "value": {"detail": "Invalid or expired session"}}}}}},
+    403: {"description": "Forbidden: not post owner", "content": {"application/json": {"example": {"detail": "You can only update your own posts"}}}},
+    404: {"description": "Post not found", "content": {"application/json": {"example": {"detail": "Post with id 123 not found"}}}},
+    400: {"description": "Failed to update post status", "content": {"application/json": {"example": {"detail": "Failed to update post status"}}}},
+    500: {"description": "Server error while updating post", "content": {"application/json": {"example": {"detail": "Error updating post: <reason>"}}}}
+})
 async def mark_post_as_found(
     post_id: int,
     current_user: UserResponse = Depends(get_current_user),
@@ -119,7 +174,13 @@ async def mark_post_as_found(
     return post_service.mark_post_as_found(post_id, current_user.id)
 
 
-@router.delete("/{post_id}", response_model=PostResponse)
+@router.delete("/{post_id}", response_model=PostResponse, responses={
+    401: {"content": {"application/json": {"examples": {"MissingSession": {"summary": "Missing session cookie", "value": {"detail": "Authentication required"}}, "InvalidSession": {"summary": "Invalid or expired session", "value": {"detail": "Invalid or expired session"}}}}}},
+    403: {"description": "Forbidden: not post owner", "content": {"application/json": {"example": {"detail": "You can only close your own posts"}}}},
+    404: {"description": "Post not found", "content": {"application/json": {"example": {"detail": "Post with id 123 not found"}}}},
+    400: {"description": "Failed to close post", "content": {"application/json": {"example": {"detail": "Failed to close post"}}}},
+    500: {"description": "Server error while closing post", "content": {"application/json": {"example": {"detail": "Error closing post: <reason>"}}}}
+})
 async def close_post(
     post_id: int,
     current_user: UserResponse = Depends(get_current_user),
@@ -137,7 +198,10 @@ async def close_post(
     return post_service.close_post(post_id, current_user.id)
 
 
-@router.get("/{post_id}/reports", response_model=List[ReportResponse])
+@router.get("/{post_id}/reports", response_model=List[ReportResponse], responses={
+    404: {"description": "Post not found", "content": {"application/json": {"example": {"detail": "Post with id 123 not found"}}}},
+    500: {"description": "Server error while retrieving reports", "content": {"application/json": {"example": {"detail": "Error retrieving reports for post: <reason>"}}}}
+})
 async def get_post_reports(
     post_id: int,
     report_service: ReportService = Depends(get_report_service)

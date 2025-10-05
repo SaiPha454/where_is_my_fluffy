@@ -17,7 +17,11 @@ def get_notification_service(db: Session = Depends(get_db)) -> NotificationServi
     return NotificationService(notification_repository)
 
 
-@router.patch("/", response_model=NotificationUpdateResponse)
+@router.patch("/", response_model=NotificationUpdateResponse, responses={
+    401: {"content": {"application/json": {"examples": {"MissingSession": {"summary": "Missing session cookie", "value": {"detail": "Authentication required"}}, "InvalidSession": {"summary": "Invalid or expired session", "value": {"detail": "Invalid or expired session"}}}}}},
+    404: {"description": "Post not found", "content": {"application/json": {"example": {"detail": "Post with id 123 not found"}}}},
+    500: {"description": "Server error while updating notifications", "content": {"application/json": {"example": {"detail": "Error updating notifications: <reason>"}}}}
+})
 async def mark_notifications_as_read(
     post_id: int = Query(..., description="ID of the post to mark notifications as read"),
     current_user: UserResponse = Depends(get_current_user),

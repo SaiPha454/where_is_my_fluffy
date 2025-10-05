@@ -9,7 +9,40 @@ from typing import Optional
 router = APIRouter(tags=["authentication"])
 
 
-@router.post("/auth/register", response_model=AuthResponse)
+@router.post("/auth/register", response_model=AuthResponse, responses={
+    200: {
+        "content": {
+            "application/json": {
+                "examples": {
+                    "EmailAlreadyRegistered": {
+                        "summary": "Email already registered (service returns success=False)",
+                        "value": {
+                            "success": False,
+                            "message": "Email already registered",
+                            "user": None
+                        }
+                    },
+                    "RegistrationFailed": {
+                        "summary": "Registration failed (unexpected error)",
+                        "value": {
+                            "success": False,
+                            "message": "Registration failed: <reason>",
+                            "user": None
+                        }
+                    },
+                    "FailedToCreateUser": {
+                        "summary": "User creation failed",
+                        "value": {
+                            "success": False,
+                            "message": "Failed to create user",
+                            "user": None
+                        }
+                    }
+                }
+            }
+        }
+    }
+})
 async def register_user(
     user_data: UserRegistrationRequest,
     response: Response,
@@ -32,7 +65,32 @@ async def register_user(
     return auth_response
 
 
-@router.post("/auth/login", response_model=AuthResponse)
+@router.post("/auth/login", response_model=AuthResponse, responses={
+    200: {
+        "content": {
+            "application/json": {
+                "examples": {
+                    "InvalidCredentials": {
+                        "summary": "Invalid email or password (service returns success=False)",
+                        "value": {
+                            "success": False,
+                            "message": "Invalid email or password",
+                            "user": None
+                        }
+                    },
+                    "LoginFailed": {
+                        "summary": "Login failed (unexpected error)",
+                        "value": {
+                            "success": False,
+                            "message": "Login failed: <reason>",
+                            "user": None
+                        }
+                    }
+                }
+            }
+        }
+    }
+})
 async def login_user(
     login_data: UserLoginRequest,
     response: Response,
@@ -55,7 +113,40 @@ async def login_user(
     return auth_response
 
 
-@router.post("/auth/logout", response_model=AuthResponse)
+@router.post("/auth/logout", response_model=AuthResponse, responses={
+    401: {
+        "description": "No active session found",
+        "content": {
+            "application/json": {
+                "example": {"detail": "No active session found"}
+            }
+        }
+    },
+    200: {
+        "content": {
+            "application/json": {
+                "examples": {
+                    "InvalidSession": {
+                        "summary": "Invalid session (service returns success=False)",
+                        "value": {
+                            "success": False,
+                            "message": "Invalid session",
+                            "user": None
+                        }
+                    },
+                    "LogoutFailed": {
+                        "summary": "Logout failed (unexpected error)",
+                        "value": {
+                            "success": False,
+                            "message": "Logout failed: <reason>",
+                            "user": None
+                        }
+                    }
+                }
+            }
+        }
+    }
+})
 async def logout_user(
     response: Response,
     session_id: Optional[str] = Cookie(None),
@@ -103,7 +194,24 @@ def get_current_user(
 
 
 # Optional: Get current user info endpoint
-@router.get("/auth/me", response_model=AuthResponse)
+@router.get("/auth/me", response_model=AuthResponse, responses={
+    401: {
+        "content": {
+            "application/json": {
+                "examples": {
+                    "MissingSession": {
+                        "summary": "Missing session cookie",
+                        "value": {"detail": "Authentication required"}
+                    },
+                    "InvalidSession": {
+                        "summary": "Invalid or expired session",
+                        "value": {"detail": "Invalid or expired session"}
+                    }
+                }
+            }
+        }
+    }
+})
 async def get_current_user_info(
     current_user=Depends(get_current_user)
 ):
