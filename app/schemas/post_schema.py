@@ -5,6 +5,20 @@ from enum import Enum
 from fastapi import Form, UploadFile
 
 
+# Forward declaration to avoid circular imports
+class NotificationResponse(BaseModel):
+    """Notification information in post responses"""
+    id: int
+    post_id: int
+    report_id: int
+    message: str
+    is_read: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
 class PostStatus(str, Enum):
     LOST = "lost"
     FOUND = "found"
@@ -137,10 +151,17 @@ class PostResponse(BaseModel):
     owner: UserResponse
     photos: List[PhotoResponse]
     reward: Optional[RewardResponse]
+    notifications: List[NotificationResponse] = []
     
     @classmethod
-    def from_post(cls, post):
+    def from_post(cls, post, include_notifications=True):
         """Create PostResponse from Post model with proper field mapping"""
+        notifications = []
+        if include_notifications and hasattr(post, 'notifications'):
+            # Filter for unread notifications only
+            unread_notifications = [n for n in post.notifications if not n.is_read]
+            notifications = [NotificationResponse.model_validate(notification) for notification in unread_notifications]
+        
         return cls(
             id=post.id,
             pet_name=post.pet_name,
@@ -158,7 +179,8 @@ class PostResponse(BaseModel):
                 email=post.owner.email
             ),
             photos=[PhotoResponse.from_photo(photo) for photo in post.photos],
-            reward=RewardResponse.from_reward(post.rewards[0]) if post.rewards else None
+            reward=RewardResponse.from_reward(post.rewards[0]) if post.rewards else None,
+            notifications=notifications
         )
     
     class Config:

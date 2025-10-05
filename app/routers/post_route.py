@@ -4,9 +4,12 @@ from typing import Optional, List
 
 from ..db.database import get_db
 from ..services.post_service import PostService
+from ..services.report_service import ReportService
 from ..repositories.post_repository import PostRepository
+from ..repositories.report_repository import ReportRepository
 from ..repositories.user_repository import UserRepository
 from ..schemas.post_schema import PostCreateForm, PostResponse, PostListResponse, PostFilters, PostStatus
+from ..schemas.report_schema import ReportResponse
 from ..routers.auth_route import get_current_user
 from ..schemas.auth_schema import UserResponse
 
@@ -18,6 +21,14 @@ def get_post_service(db: Session = Depends(get_db)) -> PostService:
     post_repository = PostRepository(db)
     user_repository = UserRepository(db)
     return PostService(post_repository, user_repository)
+
+
+def get_report_service(db: Session = Depends(get_db)) -> ReportService:
+    """Dependency to get ReportService instance"""
+    report_repository = ReportRepository(db)
+    post_repository = PostRepository(db)
+    user_repository = UserRepository(db)
+    return ReportService(report_repository, post_repository, user_repository, db)
 
 
 @router.post("/", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
@@ -124,3 +135,24 @@ async def close_post(
     Requires authentication.
     """
     return post_service.close_post(post_id, current_user.id)
+
+
+@router.get("/{post_id}/reports", response_model=List[ReportResponse])
+async def get_post_reports(
+    post_id: int,
+    report_service: ReportService = Depends(get_report_service)
+):
+    """
+    Get all reports for a specific post.
+    
+    Returns a list of all reports related to the given post ID,
+    sorted by creation date with the latest report first.
+    Each report includes the reported user information.
+    
+    Path Parameters:
+    - post_id: The ID of the post to get reports for
+    
+    Returns:
+    - List of reports with reporter information, sorted by creation date (latest first)
+    """
+    return report_service.get_reports_by_post_id(post_id)

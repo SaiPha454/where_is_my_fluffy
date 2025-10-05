@@ -158,3 +158,27 @@ class ReportService:
         """
         facade = RewardProcessFacade(self.db_session)
         return facade.execute_reward_process(report_id)
+    
+    def get_reports_by_post_id(self, post_id: int) -> List[ReportResponse]:
+        """Get all reports for a specific post, sorted by creation date (latest first)"""
+        try:
+            # Validate that the post exists
+            if not self.post_repository.post_exists(post_id):
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Post with id {post_id} not found"
+                )
+            
+            # Get all reports for the post
+            reports = self.report_repository.get_reports_by_post_id(post_id)
+            
+            # Convert to response objects
+            return [ReportResponse.from_report(report) for report in reports]
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error retrieving reports for post: {str(e)}"
+            )

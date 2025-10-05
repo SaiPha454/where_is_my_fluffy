@@ -3,7 +3,7 @@ from sqlalchemy import and_
 from ..models.report import Report, ReportStatus
 from ..models.report_photo import ReportPhoto
 from ..observers.report_observer import report_event_manager, NotificationObserver
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -110,3 +110,17 @@ class ReportRepository:
     def report_exists(self, report_id: int) -> bool:
         """Check if a report exists"""
         return self.db.query(Report).filter(Report.id == report_id).first() is not None
+    
+    def get_reports_by_post_id(self, post_id: int) -> List[Report]:
+        """Get all reports for a specific post, sorted by creation date (latest first)"""
+        return (
+            self.db.query(Report)
+            .options(
+                joinedload(Report.reporter),  # Include reported user information
+                joinedload(Report.post),      # Include post information
+                joinedload(Report.photos)     # Include report photos
+            )
+            .filter(Report.post_id == post_id)
+            .order_by(Report.created_at.desc())  # Latest first
+            .all()
+        )

@@ -66,26 +66,28 @@ class PostRepository:
             raise e
     
     def get_post_by_id(self, post_id: int) -> Optional[Post]:
-        """Get a post by ID with all related data"""
+        """Get a post by ID with all related data including notifications"""
         return (
             self.db.query(Post)
             .options(
                 joinedload(Post.owner),
                 joinedload(Post.photos),
-                joinedload(Post.rewards)
+                joinedload(Post.rewards),
+                joinedload(Post.notifications)
             )
             .filter(Post.id == post_id)
             .first()
         )
     
     def get_posts(self, status: Optional[str] = None, user_id: Optional[int] = None) -> List[Post]:
-        """Get posts with optional filtering"""
+        """Get posts with optional filtering including notifications"""
         query = (
             self.db.query(Post)
             .options(
                 joinedload(Post.owner),
                 joinedload(Post.photos),
-                joinedload(Post.rewards)
+                joinedload(Post.rewards),
+                joinedload(Post.notifications)
             )
         )
         
