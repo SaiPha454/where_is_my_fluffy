@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .routers.user_route import router as user_router
 from .routers.auth_route import router as auth_router
@@ -12,6 +13,23 @@ app = FastAPI(
     title="MyFluffy API",
     description="A FastAPI application for MyFluffy",
     version="1.0.0"
+)
+
+# Enable permissive CORS for all origins, methods, and headers
+app.add_middleware(
+    CORSMiddleware,
+    # Must NOT be '*' when allow_credentials=True
+    allow_origins=[
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "http://127.0.0.1:5501",
+        "http://localhost:5501",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True,
 )
 
 # Create database tables on startup
