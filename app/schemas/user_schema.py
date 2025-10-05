@@ -11,6 +11,14 @@ class PublicUserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "username": "john_doe",
+                "email": "john@example.com",
+                "created_at": "2024-01-01T00:00:00Z"
+            }
+        }
 
 
 class BalanceTopUpRequest(BaseModel):

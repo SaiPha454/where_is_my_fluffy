@@ -11,7 +11,7 @@ class ReportCreateForm(BaseModel):
     location: Optional[str] = Field(None, max_length=500, description="Location where the pet was found (optional)")
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "post_id": 1,
                 "description": "I saw this pet near the park on Main Street",
@@ -68,6 +68,35 @@ class ReportResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": 12,
+                "post_id": 1,
+                "reporter_id": 7,
+                "description": "I found a dog matching the description near 5th Avenue.",
+                "location": "5th Avenue and Main St",
+                "status": "pending",
+                "created_at": "2025-10-03T12:00:00",
+                "reporter": {
+                    "id": 7,
+                    "username": "reporter_user",
+                    "email": "reporter@example.com"
+                },
+                "post": {
+                    "id": 1,
+                    "pet_name": "Buddy",
+                    "pet_spec": "Dog",
+                    "status": "lost"
+                },
+                "photos": [
+                    {
+                        "id": 100,
+                        "photo_url": "https://example.com/report_photo.jpg",
+                        "created_at": "2025-10-03T12:05:00"
+                    }
+                ]
+            }
+        }
 
     @classmethod
     def from_report(cls, report) -> 'ReportResponse':

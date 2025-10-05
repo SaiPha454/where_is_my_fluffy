@@ -215,7 +215,17 @@ class PostResponse(BaseModel):
                     "is_claimed": False,
                     "created_at": "2025-09-28T10:30:00",
                     "claimed_at": None
-                }
+                },
+                "notifications": [
+                    {
+                        "id": 10,
+                        "post_id": 1,
+                        "report_id": 5,
+                        "message": "New report on your post",
+                        "is_read": False,
+                        "created_at": "2025-10-03T10:30:00"
+                    }
+                ]
             }
         }
 
@@ -229,7 +239,47 @@ class PostListResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "posts": [
-                    # PostResponse example would be here
+                    {
+                        "id": 1,
+                        "pet_name": "Buddy",
+                        "pet_species": "Dog",
+                        "pet_breed": "Golden Retriever",
+                        "last_seen_location": "Central Park, New York",
+                        "contact_information": "Phone: 555-0123, Email: john@example.com",
+                        "description": "Friendly golden retriever, responds to 'Buddy'. Has a red collar.",
+                        "status": "lost",
+                        "created_at": "2025-09-28T10:30:00",
+                        "updated_at": None,
+                        "owner": {
+                            "id": 1,
+                            "username": "john_doe",
+                            "email": "john@example.com"
+                        },
+                        "photos": [
+                            {
+                                "id": 1,
+                                "photo_url": "https://example.com/photo1.jpg",
+                                "uploaded_at": "2025-09-28T10:30:00"
+                            }
+                        ],
+                        "reward": {
+                            "id": 1,
+                            "points": 100,
+                            "is_claimed": False,
+                            "created_at": "2025-09-28T10:30:00",
+                            "claimed_at": None
+                        },
+                        "notifications": [
+                            {
+                                "id": 10,
+                                "post_id": 1,
+                                "report_id": 5,
+                                "message": "New report on your post",
+                                "is_read": False,
+                                "created_at": "2025-10-03T10:30:00"
+                            }
+                        ]
+                    }
                 ],
                 "total": 25
             }
